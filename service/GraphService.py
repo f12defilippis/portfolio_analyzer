@@ -27,7 +27,7 @@ def draw_data_table(table, row_index_name, id_table):
                                        },
                                        'backgroundColor': '#3D9970',
                                        'color': 'white'
-                                   } for col in table.columns
+                                   } for col in table.iloc[:, 1:].columns
                                ] +
                                [
                                    {
@@ -37,7 +37,7 @@ def draw_data_table(table, row_index_name, id_table):
                                        },
                                        'backgroundColor': '#FF4136',
                                        'color': 'white'
-                                   } for col in table.columns
+                                   } for col in table.iloc[:, 1:].columns
                                ],
         data=table.to_dict('records'),
     )

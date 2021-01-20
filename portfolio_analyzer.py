@@ -70,7 +70,7 @@ content = html.Div(id="page-content", children=pasl.render_page(capital, risk), 
 app.layout = html.Div([
     dcc.Location(id="url"),
     sidebar,
-    content,
+    content
 ])
 
 

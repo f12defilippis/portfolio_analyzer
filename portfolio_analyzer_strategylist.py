@@ -138,9 +138,10 @@ def render_page(capital, risk):
         dbc.Row([
             dbc.Col(layout, width=12),
         ]),
-        dbc.Row({
-            dbc.Col(div_modal, width=12),
-        })
+        div_modal
+        # dbc.Row({
+        #     dbc.Col(div_modal, width=12),
+        # })
     ])
 
     return ret

@@ -29,10 +29,10 @@ def performance_report(data, capital, margin_used):
         round(data['profit_net'].sum() / data[data.drawdown < 0].drawdown.mean() * -1, 2), html.Br(),
         'Max Drawdown / Capital: ', round(data.max_drawdown.min() * -1 / capital, 2) * 100, '%', html.Br(),
         'Max Rolling Drawdown / Equity: ', round(data.ddOnCapital.min() * -1, 2), '%', html.Br(),
-        'Max Drawdown / Capital Needed: ',
-                        round(data.max_drawdown.min() * -1 / (margin_used + (data.max_drawdown.min() * -1) * 2),
-                              2) * 100, '%', html.Br(),
-        'Capital / Capital Needed: ', round(capital / (margin_used + (data.max_drawdown.min() * -1) * 2) * 100, 2), '%'
+        # 'Max Drawdown / Capital Needed: ',
+        #                 round(data.max_drawdown.min() * -1 / (margin_used + (data.max_drawdown.min() * -1) * 2),
+        #                       2) * 100, '%', html.Br(),
+        # 'Capital / Capital Needed: ', round(capital / (margin_used + (data.max_drawdown.min() * -1) * 2) * 100, 2), '%'
     ])
 
 
