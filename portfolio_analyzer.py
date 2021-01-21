@@ -109,9 +109,10 @@ app.layout = html.Div([
     Output("div_modal", "children"),
     [Input("open", "n_clicks"), Input("close-xl", "n_clicks")],
     [State("strategy_list_table", "data")],
-    [State("strategy_list_table", "selected_rows")]
+    [State("strategy_list_table", "selected_rows")],
+    [State('check_oos', 'checked')]
 )
-def get_model_data(n1, n2, datatable, selected_row_ids):
+def get_model_data(n1, n2, datatable, selected_row_ids, oos):
 
     data = CalculateDataService.load_data(capital, risk)
     data_selected = []
@@ -122,6 +123,9 @@ def get_model_data(n1, n2, datatable, selected_row_ids):
     ret_data = pd.DataFrame()
     if len(data_selected) > 0:
         ret_data = pd.concat(data_selected)
+
+    if len(data_selected) > 0 and oos:
+        ret_data = ret_data[ret_data['oosis'] == 'oos']
 
     return pasm.render_modal(ret_data, n1 is not None and n1 > 0, n2 is not None and n2 > 0)
 

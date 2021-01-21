@@ -138,6 +138,9 @@ def render_page(capital, risk):
         dbc.Row([
             dbc.Col(layout, width=12),
         ]),
+        dbc.Row([
+            dbc.Col(dbc.Button("Simulate Portfolio", id="open", color="primary"), width=12),
+        ], style={'margin-top': '15px'}),
         div_modal
         # dbc.Row({
         #     dbc.Col(div_modal, width=12),

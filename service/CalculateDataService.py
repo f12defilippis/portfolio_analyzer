@@ -6,8 +6,8 @@ from service import ManageDataService
 
 
 def load_data(capital, risk):
-    data_original = ManageDataService.load_all_csv_by_folder(r'Z:\ts10\strategy_reports\reports\selezione')
-    data_anagrafica = pd.read_csv(r'Z:/\ts10\strategy_reports/strategy_list.txt')
+    data_original = ManageDataService.load_all_csv_by_folder(r'Z:\portfolio_analyzer\reports')
+    data_anagrafica = pd.read_csv(r'Z:\portfolio_analyzer/strategy_list.txt')
 
     data = ManageDataService.merge_dataframe(data_original, data_anagrafica)
     data['strategy'] = data.strategy.str.replace('/\_', '', regex=False)
@@ -119,7 +119,9 @@ def rotate_portfolio(data, num_strategies):
                 selected_trade = selected_trade.loc[mask]
                 live_trade.append(selected_trade)
 
-    rotated_portfolio_data = pd.concat(live_trade)
+    rotated_portfolio_data = pd.DataFrame()
+    if len(live_trade) > 0:
+        rotated_portfolio_data = pd.concat(live_trade)
     return rotated_portfolio_data
 
 
@@ -171,3 +173,46 @@ def calculate_strategy_summary(strategy, first_trade, selected_trade):
     strategy['profit_1m'] = one_month_ago_trade['profit_net'].sum()
     strategy['profit_6m'] = six_month_ago_trade['profit_net'].sum()
     strategy['profit_1y'] = one_year_ago_trade['profit_net'].sum()
+
+
+def get_controlled_and_uncontrolled_data(data, capital, risk, dd_limit):
+    strategy_list = data.strategy.unique()
+    all_operations = []
+    all_operations_uncontrolled = []
+    for strategy in strategy_list:
+        name = strategy.replace("\\", "").replace("/", "")
+        data_onestrategy = data[data['strategy'] == strategy].copy()
+        calculate_values(data_onestrategy, False, capital, risk, True, True)
+        all_operations_uncontrolled.append(data_onestrategy.copy())
+        calculate_equity_control(data_onestrategy, dd_limit)
+        calculate_values(data_onestrategy, True, capital, risk, True, True)
+        all_operations.append(data_onestrategy)
+
+    data_controlled = pd.concat(all_operations)
+    data_controlled = data_controlled.sort_values(by=['date', 'time'])
+    data_uncontrolled = pd.concat(all_operations_uncontrolled)
+    data_uncontrolled = data_uncontrolled.sort_values(by=['date', 'time'])
+    calculate_values(data_controlled, True, capital, risk, False, True)
+    calculate_values(data_uncontrolled, False, capital, risk, False, True)
+
+    return data_controlled, data_uncontrolled
+
+
+def calculate_data_merged(data, data_controlled, data_rotated, data_controlled_rotated):
+    data["type"] = "Original"
+    data_controlled["type"] = "Controlled"
+    data_rotated["type"] = "Rotated"
+    data_controlled_rotated["type"] = "ControlledRotated"
+
+    data_syncdate = data[
+        pd.to_datetime(data['date']) >= pd.to_datetime(data_rotated.date.array[0])].copy()
+    data_controlled_syncdate = data_controlled[
+        pd.to_datetime(data_controlled['date']) >= pd.to_datetime(data_controlled_rotated.date.array[0])].copy()
+    calculate_values(data_controlled_syncdate, True, 30000, 2.5, False, True)
+    calculate_values(data_syncdate, False, 30000, 2.5, False, True)
+
+    frames = [data_syncdate, data_controlled_syncdate, data_rotated,
+              data_controlled_rotated]
+
+    data_merged = pd.concat(frames)
+    return data_merged
