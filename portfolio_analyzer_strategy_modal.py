@@ -72,7 +72,7 @@ def render_modal_body(data, capital, risk, num_strategies):
 
 
 
-        data_merged = CalculateDataService.calculate_data_merged(data, data_controlled, data_rotated, data_controlled_rotated, capital, risk)
+        data_merged = CalculateDataService.calculate_data_merged(data, data_controlled, data_rotated, data_controlled_rotated, data_rotated_corr, data_controlled_rotated_corr, capital, risk)
 
         data_correlated = CalculateDataService.correlate(data)
         z = data_correlated.to_numpy().tolist()
@@ -148,13 +148,23 @@ def render_modal_body(data, capital, risk, num_strategies):
                 dbc.Col(GraphService.draw_data_table(table_month_controlled_rotated, "month", "modal_month_datatable_controlled_rotated"), width=12),
             ]),
             dbc.Row([
+                dbc.Col(GraphService.draw_data_table(table_month_rotated_corr, "month", "modal_month_datatable_rotated_corr"),
+                        width=12),
+            ]),
+            dbc.Row([
+                dbc.Col(GraphService.draw_data_table(table_month_controlled_rotated_corr, "month",
+                                                     "modal_month_datatable_controlled_rotated_corr"), width=12),
+            ]),
+            dbc.Row([
                 dbc.Col(dcc.Graph(id='equity_merged', figure=fig_merged), width=12),
             ]),
             dbc.Row([
-                dbc.Col(PrintTextService.performance_report(data, capital, 1), width=3),
-                dbc.Col(PrintTextService.performance_report(data_controlled, capital, 1), width=3),
-                dbc.Col(PrintTextService.performance_report(data_rotated, capital, 1), width=3),
-                dbc.Col(PrintTextService.performance_report(data_controlled_rotated, capital, 1), width=3),
+                dbc.Col(PrintTextService.performance_report(data, capital, 1), width=2),
+                dbc.Col(PrintTextService.performance_report(data_controlled, capital, 1), width=2),
+                dbc.Col(PrintTextService.performance_report(data_rotated, capital, 1), width=2),
+                dbc.Col(PrintTextService.performance_report(data_controlled_rotated, capital, 1), width=2),
+                dbc.Col(PrintTextService.performance_report(data_rotated_corr, capital, 1), width=2),
+                dbc.Col(PrintTextService.performance_report(data_controlled_rotated_corr, capital, 1), width=2),
             ]),
             dbc.Row([
                 dbc.Col(dcc.Graph(id='correlation_graph', figure=fig_correlated), width=12),

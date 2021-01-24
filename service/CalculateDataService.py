@@ -123,6 +123,9 @@ def rotate_portfolio(data_original_nomm, data, num_strategies, method):
                             pd.to_datetime(selected_trade['date']) < date_ref_next_month)
                 selected_trade = selected_trade.loc[mask]
                 live_trade.append(selected_trade)
+            print("Method: " + str(method) + " Year: " + str(year) + " Month: " + str(month) + " Trade size: " + str(len(live_trade)))
+            print(selected_strategies)
+            print("-------------------------------------")
 
     rotated_portfolio_data = pd.DataFrame()
     if len(live_trade) > 0:
@@ -162,27 +165,22 @@ def calculate_ranking_npcorr(data, date_ref):
     data_filtered = data[pd.to_datetime(data['date']) > one_year_ago].copy()
 
     table_strategy_np = pd.pivot_table(data_filtered, values='profit_net', index=['strategy'], aggfunc=np.sum).fillna(0)
+    strategy_list = table_strategy_np.index.tolist()
+    table_strategy_np["correlation_index"] = 0
 
-    data_correlated = correlate(data)
-    strategy_correlated_sorted = data_correlated.sum().sort_values(ascending=False).index.values
+    correlation_index = table_strategy_np.index.size
+    while data_filtered.size > 0:
+        data_correlated = correlate(data_filtered)
+        strategy_correlated_sorted = data_correlated.sum().sort_values(ascending=False).index.values
+        strategy_max_correlated = strategy_correlated_sorted[0]
+        table_strategy_np.loc[table_strategy_np.index == strategy_max_correlated, 'correlation_index'] = correlation_index
+        data_filtered = data_filtered[data_filtered.strategy != strategy_max_correlated]
+        correlation_index = correlation_index - 1
 
-    table_strategy = pd.merge(
-        table_strategy_np,
-        strategy_correlated_sorted,
-        how="inner",
-        on="strategy",
-        left_on=None,
-        right_on=None,
-        left_index=False,
-        right_index=False,
-        sort=False,
-        suffixes=("_x", "_y"),
-        copy=True,
-        indicator=False,
-        validate=None
-    )
 
-    return table_strategy[table_strategy.profit_net > 0]
+    table_strategy_np = table_strategy_np.sort_values(by=['correlation_index'], ascending=True)
+
+    return table_strategy_np[table_strategy_np.profit_net > 0]
 
 
 
@@ -200,12 +198,16 @@ def calculate_strategy_summary(strategy, first_trade, selected_trade):
     grouped_st = selected_trade.groupby(by=["month", "year"], dropna=False)['profit_net'].sum()
     strategy['worst_month'] = grouped_st.min() * -1
     strategy['avg_loosing_month'] = grouped_st[grouped_st < 0].mean() * -1
-    today, one_month_ago, six_month_ago, one_year_ago = Utils.get_dates_from_today()
+    today, one_month_ago, three_month_ago, six_month_ago, nine_month_ago, one_year_ago = Utils.get_dates_from_today()
     one_month_ago_trade = selected_trade[pd.to_datetime(selected_trade['date']) >= pd.to_datetime(one_month_ago)].copy()
+    three_month_ago_trade = selected_trade[pd.to_datetime(selected_trade['date']) >= pd.to_datetime(three_month_ago)].copy()
     six_month_ago_trade = selected_trade[pd.to_datetime(selected_trade['date']) >= pd.to_datetime(six_month_ago)].copy()
+    nine_month_ago_trade = selected_trade[pd.to_datetime(selected_trade['date']) >= pd.to_datetime(nine_month_ago)].copy()
     one_year_ago_trade = selected_trade[pd.to_datetime(selected_trade['date']) >= pd.to_datetime(one_year_ago)].copy()
     strategy['profit_1m'] = one_month_ago_trade['profit_net'].sum()
+    strategy['profit_3m'] = three_month_ago_trade['profit_net'].sum()
     strategy['profit_6m'] = six_month_ago_trade['profit_net'].sum()
+    strategy['profit_9m'] = nine_month_ago_trade['profit_net'].sum()
     strategy['profit_1y'] = one_year_ago_trade['profit_net'].sum()
 
 
@@ -241,11 +243,13 @@ def get_controlled_and_uncontrolled_data(data, capital, risk, dd_limit):
     return data_controlled, data_uncontrolled, data_uncontrolled_nomm
 
 
-def calculate_data_merged(data, data_controlled, data_rotated, data_controlled_rotated, capital, risk):
+def calculate_data_merged(data, data_controlled, data_rotated, data_controlled_rotated, data_rotated_corr, data_controlled_rotated_corr, capital, risk):
     data["type"] = "Original"
     data_controlled["type"] = "Controlled"
     data_rotated["type"] = "Rotated"
     data_controlled_rotated["type"] = "ControlledRotated"
+    data_rotated_corr["type"] = "Rotated Corr"
+    data_controlled_rotated_corr["type"] = "ControlledRotatedCorr"
 
     data_syncdate = data[
         pd.to_datetime(data['date']) >= pd.to_datetime(data_rotated.date.array[0])].copy()
@@ -255,7 +259,7 @@ def calculate_data_merged(data, data_controlled, data_rotated, data_controlled_r
     calculate_values(data_syncdate, False, capital, risk, False, True)
 
     frames = [data_syncdate, data_controlled_syncdate, data_rotated,
-              data_controlled_rotated]
+              data_controlled_rotated, data_rotated_corr, data_controlled_rotated_corr]
 
     data_merged = pd.concat(frames)
     return data_merged

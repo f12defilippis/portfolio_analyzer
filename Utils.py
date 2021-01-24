@@ -27,6 +27,8 @@ def base64ToString(b):
 def get_dates_from_today():
     today = date.today()
     one_month_ago = today - relativedelta(months=1)
+    three_month_ago = today - relativedelta(months=3)
     six_month_ago = today - relativedelta(months=6)
+    nine_month_ago = today - relativedelta(months=9)
     one_year_ago = today - relativedelta(months=12)
-    return today, one_month_ago, six_month_ago, one_year_ago
+    return today, one_month_ago, three_month_ago, six_month_ago, nine_month_ago, one_year_ago

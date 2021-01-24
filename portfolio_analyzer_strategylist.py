@@ -33,7 +33,7 @@ def render_page(capital, risk, num_strategies):
         dict(id='class', name='Class'),
         dict(id='slippage', name='Slippage', type='numeric', format=money),
         dict(id='stop_loss', name='Stop Loss', type='numeric', format=money),
-        dict(id='oos_from', name='OOS From'),
+        #dict(id='oos_from', name='OOS From'),
         dict(id='profit', name='Profit', type='numeric', format=money),
         dict(id='max_dd', name='Max Drawdown', type='numeric', format=money),
         dict(id='np_maxdd', name='NP / Max DD', type='numeric'),
@@ -42,9 +42,11 @@ def render_page(capital, risk, num_strategies):
         # dict(id='perc_profit', name='% Profitable', type='numeric', format=percentage),
         dict(id='worst_trade', name='Worst Trade', type='numeric', format=money),
         dict(id='worst_month', name='Worst Month', type='numeric', format=money),
-        dict(id='avg_loosing_month', name='Avg Loosing Month', type='numeric', format=money),
+        #dict(id='avg_loosing_month', name='Avg Loosing Month', type='numeric', format=money),
         dict(id='profit_1m', name='Profit 1 Month', type='numeric', format=money),
+        dict(id='profit_3m', name='Profit 3 Month', type='numeric', format=money),
         dict(id='profit_6m', name='Profit 6 Month', type='numeric', format=money),
+        dict(id='profit_9m', name='Profit 9 Month', type='numeric', format=money),
         dict(id='profit_1y', name='Profit 1 Year', type='numeric', format=money),
     ]
 
@@ -121,6 +123,46 @@ def render_page(capital, risk, num_strategies):
                         'if': {
                             'filter_query': '{profit_1y} > 0',
                             'column_id': 'profit_1y'
+                        },
+                        'backgroundColor': '#3D9970',
+                        'color': 'white'
+                    }
+                ]+
+                [
+                    {
+                        'if': {
+                            'filter_query': '{profit_3m} <= 0',
+                            'column_id': 'profit_3m'
+                        },
+                        'backgroundColor': '#FF4136',
+                        'color': 'white'
+                    }
+                ] +
+                [
+                    {
+                        'if': {
+                            'filter_query': '{profit_3m} > 0',
+                            'column_id': 'profit_3m'
+                        },
+                        'backgroundColor': '#3D9970',
+                        'color': 'white'
+                    }
+                ] +
+                [
+                    {
+                        'if': {
+                            'filter_query': '{profit_9m} <= 0',
+                            'column_id': 'profit_9m'
+                        },
+                        'backgroundColor': '#FF4136',
+                        'color': 'white'
+                    }
+                ] +
+                [
+                    {
+                        'if': {
+                            'filter_query': '{profit_9m} > 0',
+                            'column_id': 'profit_9m'
                         },
                         'backgroundColor': '#3D9970',
                         'color': 'white'
