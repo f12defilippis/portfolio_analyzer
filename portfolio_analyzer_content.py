@@ -33,8 +33,8 @@ def render_page(capital, num_strategies, risk, dd_limit, oos, position_sizing, e
     CalculateDataService.calculate_values(data_controlled, True, capital, risk, False, True)
     CalculateDataService.calculate_values(data, False, capital, risk, False, True)
 
-    rotated_portfolio_data = CalculateDataService.rotate_portfolio(data, num_strategies).sort_values(by=['date', 'time'])
-    rotated_portfolio_data_controlled = CalculateDataService.rotate_portfolio(data_controlled, num_strategies).sort_values(
+    rotated_portfolio_data = CalculateDataService.rotate_portfolio(data, num_strategies, "np_avgdd").sort_values(by=['date', 'time'])
+    rotated_portfolio_data_controlled = CalculateDataService.rotate_portfolio(data_controlled, num_strategies, "np_avgdd").sort_values(
         by=['date', 'time'])
     CalculateDataService.calculate_values(rotated_portfolio_data, False, capital, risk, False, True)
     CalculateDataService.calculate_values(rotated_portfolio_data_controlled, True, capital, risk, False, True)

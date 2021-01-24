@@ -7,7 +7,7 @@ import dash_table
 import portfolio_analyzer_strategy_modal as pasm
 
 
-def render_page(capital, risk):
+def render_page(capital, risk, num_strategies):
     data = CalculateDataService.load_data(capital, risk)
     sl = data['strategy'].unique()
     all_strategies = []
@@ -131,7 +131,7 @@ def render_page(capital, risk):
 
     div_modal = html.Div(
         id="div_modal",
-        children=pasm.render_modal(pd.DataFrame(), False, True)
+        children=pasm.render_modal(pd.DataFrame(), False, True, capital, risk, num_strategies)
     )
 
     ret = html.Div([

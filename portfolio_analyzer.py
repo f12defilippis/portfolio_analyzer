@@ -14,9 +14,9 @@ import portfolio_analyzer_strategy_modal as pasm
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 #base variables
-capital = 30000
-num_strategies = 8
-risk = 2.5
+capital_start = 30000
+num_strategies_start = 8
+risk_start = 2.5
 dd_limit = 5
 oos = True
 position_sizing = True
@@ -49,9 +49,9 @@ sidebar = html.Div(
         html.P(
             "Select the input options", className="lead"
         ),
-        bes.textfield("txt_capital", "Starting Capital", "Indicate the starting capital here", capital),
-        bes.textfield("txt_numstrategies", "Number of Strategies", "Indicate the number of strategies here", num_strategies),
-        bes.textfield("txt_risk", "Risk", "Indicate the risk here", risk),
+        bes.textfield("txt_capital", "Starting Capital", "Indicate the starting capital here", capital_start),
+        bes.textfield("txt_numstrategies", "Number of Strategies", "Indicate the number of strategies here", num_strategies_start),
+        bes.textfield("txt_risk", "Risk", "Indicate the risk here", risk_start),
         bes.textfield("txt_dd", "Drawdown Limit", "Indicate the drawdown limit here", dd_limit),
         bes.checkbox("check_oos", "Only OOS", oos),
         bes.checkbox("check_possiz", "Position Sizing", position_sizing),
@@ -64,7 +64,7 @@ sidebar = html.Div(
 )
 
 #content = html.Div(id="page-content", children=pac.render_page(capital, num_strategies, risk, dd_limit, oos, position_sizing, equity_control, strategy_rotation, ""), style=CONTENT_STYLE)
-content = html.Div(id="page-content", children=pasl.render_page(capital, risk), style=CONTENT_STYLE)
+content = html.Div(id="page-content", children=pasl.render_page(capital_start, risk_start, num_strategies_start), style=CONTENT_STYLE)
 
 
 app.layout = html.Div([
@@ -110,11 +110,14 @@ app.layout = html.Div([
     [Input("open", "n_clicks"), Input("close-xl", "n_clicks")],
     [State("strategy_list_table", "data")],
     [State("strategy_list_table", "selected_rows")],
-    [State('check_oos', 'checked')]
+    [State('check_oos', 'checked')],
+    [State('txt_capital', 'value')],
+    [State('txt_risk', 'value')],
+    [State('txt_numstrategies', 'value')],
 )
-def get_model_data(n1, n2, datatable, selected_row_ids, oos):
+def get_model_data(n1, n2, datatable, selected_row_ids, oos, capital, risk, num_strategies):
 
-    data = CalculateDataService.load_data(capital, risk)
+    data = CalculateDataService.load_data(int(capital), float(risk))
     data_selected = []
     for i in selected_row_ids:
         single_data = data[data['strategy'] == datatable[i]['name']]
@@ -127,7 +130,7 @@ def get_model_data(n1, n2, datatable, selected_row_ids, oos):
     if len(data_selected) > 0 and oos:
         ret_data = ret_data[ret_data['oosis'] == 'oos']
 
-    return pasm.render_modal(ret_data, n1 is not None and n1 > 0, n2 is not None and n2 > 0)
+    return pasm.render_modal(ret_data, n1 is not None and n1 > 0, n2 is not None and n2 > 0, int(capital), float(risk), int(num_strategies))
 
 
 

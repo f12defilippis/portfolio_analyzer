@@ -40,6 +40,7 @@ def calculate_values(data, have_enabled, capital, risk, single_strategy, positio
     data['equity_calc'] = data['profit_net'].cumsum()
     if single_strategy:
         data['equity_calc_single_strategy'] = data['profit_net'].cumsum()
+        data['drawdown_single_strategy'] = data['equity_calc_single_strategy'] - data['equity_calc_single_strategy'].max()
     data['equity_peak'] = data['equity_calc'].cummax()
     data['drawdown'] = data['equity_calc'] - data['equity_peak']
     data['max_drawdown'] = data['drawdown'].cummin()
@@ -90,7 +91,7 @@ def equitycontrol_generator(stop_trigger, restart_trigger):
     return service_dataframe.enabled_new
 
 
-def rotate_portfolio(data, num_strategies):
+def rotate_portfolio(data_original_nomm, data, num_strategies, method):
     number_of_live_strategies = num_strategies
     live_trade = []
     first_date = pd.to_datetime(data.iloc[1:2, :1].date.max())
@@ -110,7 +111,11 @@ def rotate_portfolio(data, num_strategies):
                 next_month_year = year + 1
             date_ref_next_month = Utils.get_first_saturday_of_month(next_month_year, next_month)
 
-            table_strategy = calculate_ranking_npavgdd(data[pd.to_datetime(data['date']) <= date_ref], date_ref)
+            table_strategy = pd.DataFrame()
+            if method == "np_avgdd":
+                table_strategy = calculate_ranking_npavgdd(data_original_nomm[pd.to_datetime(data['date']) <= date_ref], date_ref)
+            elif method == "np_corr":
+                table_strategy = calculate_ranking_npcorr(data_original_nomm[pd.to_datetime(data['date']) <= date_ref], date_ref)
             selected_strategies = table_strategy.iloc[1:number_of_live_strategies + 1, :].index.unique().to_numpy()
             for strategy in selected_strategies:
                 selected_trade = data[data.strategy == strategy].copy()
@@ -130,7 +135,7 @@ def calculate_ranking_npavgdd(data, date_ref):
     data_filtered = data[pd.to_datetime(data['date']) > one_year_ago].copy()
 
     table_strategy_np = pd.pivot_table(data_filtered, values='profit_net', index=['strategy'], aggfunc=np.sum).fillna(0)
-    table_strategy_dd = pd.pivot_table(data_filtered[data_filtered.drawdown < 0], values='drawdown', index=['strategy'],
+    table_strategy_dd = pd.pivot_table(data_filtered[data_filtered.drawdown_single_strategy < 0], values='drawdown_single_strategy', index=['strategy'],
                                        aggfunc=np.mean).fillna(0)
     table_strategy = pd.merge(
         table_strategy_np,
@@ -147,9 +152,38 @@ def calculate_ranking_npavgdd(data, date_ref):
         indicator=False,
         validate=None
     )
-    table_strategy['npavgdd'] = round(table_strategy.profit_net / table_strategy.drawdown * -1, 2)
+    table_strategy['npavgdd'] = round(table_strategy.profit_net / table_strategy.drawdown_single_strategy * -1, 2)
     table_strategy = table_strategy.sort_values(by=['npavgdd'], ascending=False)
     return table_strategy[table_strategy.profit_net > 0]
+
+
+def calculate_ranking_npcorr(data, date_ref):
+    one_year_ago = date_ref - relativedelta(months=12)
+    data_filtered = data[pd.to_datetime(data['date']) > one_year_ago].copy()
+
+    table_strategy_np = pd.pivot_table(data_filtered, values='profit_net', index=['strategy'], aggfunc=np.sum).fillna(0)
+
+    data_correlated = correlate(data)
+    strategy_correlated_sorted = data_correlated.sum().sort_values(ascending=False).index.values
+
+    table_strategy = pd.merge(
+        table_strategy_np,
+        strategy_correlated_sorted,
+        how="inner",
+        on="strategy",
+        left_on=None,
+        right_on=None,
+        left_index=False,
+        right_index=False,
+        sort=False,
+        suffixes=("_x", "_y"),
+        copy=True,
+        indicator=False,
+        validate=None
+    )
+
+    return table_strategy[table_strategy.profit_net > 0]
+
 
 
 def calculate_strategy_summary(strategy, first_trade, selected_trade):
@@ -179,11 +213,17 @@ def get_controlled_and_uncontrolled_data(data, capital, risk, dd_limit):
     strategy_list = data.strategy.unique()
     all_operations = []
     all_operations_uncontrolled = []
+    all_operations_uncontrolled_nomm = []
     for strategy in strategy_list:
         name = strategy.replace("\\", "").replace("/", "")
+        data_onestrategy_nomm = data[data['strategy'] == strategy].copy()
+        calculate_values(data_onestrategy_nomm, False, capital, risk, True, False)
+        all_operations_uncontrolled_nomm.append(data_onestrategy_nomm.copy())
+
         data_onestrategy = data[data['strategy'] == strategy].copy()
         calculate_values(data_onestrategy, False, capital, risk, True, True)
         all_operations_uncontrolled.append(data_onestrategy.copy())
+
         calculate_equity_control(data_onestrategy, dd_limit)
         calculate_values(data_onestrategy, True, capital, risk, True, True)
         all_operations.append(data_onestrategy)
@@ -192,13 +232,16 @@ def get_controlled_and_uncontrolled_data(data, capital, risk, dd_limit):
     data_controlled = data_controlled.sort_values(by=['date', 'time'])
     data_uncontrolled = pd.concat(all_operations_uncontrolled)
     data_uncontrolled = data_uncontrolled.sort_values(by=['date', 'time'])
+    data_uncontrolled_nomm = pd.concat(all_operations_uncontrolled_nomm)
+    data_uncontrolled_nomm = data_uncontrolled_nomm.sort_values(by=['date', 'time'])
     calculate_values(data_controlled, True, capital, risk, False, True)
     calculate_values(data_uncontrolled, False, capital, risk, False, True)
+    calculate_values(data_uncontrolled_nomm, False, capital, risk, False, False)
 
-    return data_controlled, data_uncontrolled
+    return data_controlled, data_uncontrolled, data_uncontrolled_nomm
 
 
-def calculate_data_merged(data, data_controlled, data_rotated, data_controlled_rotated):
+def calculate_data_merged(data, data_controlled, data_rotated, data_controlled_rotated, capital, risk):
     data["type"] = "Original"
     data_controlled["type"] = "Controlled"
     data_rotated["type"] = "Rotated"
@@ -208,11 +251,27 @@ def calculate_data_merged(data, data_controlled, data_rotated, data_controlled_r
         pd.to_datetime(data['date']) >= pd.to_datetime(data_rotated.date.array[0])].copy()
     data_controlled_syncdate = data_controlled[
         pd.to_datetime(data_controlled['date']) >= pd.to_datetime(data_controlled_rotated.date.array[0])].copy()
-    calculate_values(data_controlled_syncdate, True, 30000, 2.5, False, True)
-    calculate_values(data_syncdate, False, 30000, 2.5, False, True)
+    calculate_values(data_controlled_syncdate, True, capital, risk, False, True)
+    calculate_values(data_syncdate, False, capital, risk, False, True)
 
     frames = [data_syncdate, data_controlled_syncdate, data_rotated,
               data_controlled_rotated]
 
     data_merged = pd.concat(frames)
     return data_merged
+
+
+def correlate(data):
+    data_correlation = data[data.year >= (data.year.max()-1)].copy()
+    correlation_table = pd.pivot_table(data_correlation, values='profit_net', index=['year', 'month'],
+                                       columns=['strategy'], aggfunc=np.sum).fillna(0)
+    watchlist = correlation_table.columns.tolist()
+    equity_df = pd.DataFrame()
+    for ticker in watchlist:
+        equity_df[ticker] = correlation_table[ticker].cumsum()
+    change_df = pd.DataFrame()
+    for ticker in watchlist:
+        change_df[ticker] = equity_df[ticker].pct_change().fillna(0)
+
+    data_correlation = change_df.corr()
+    return data_correlation

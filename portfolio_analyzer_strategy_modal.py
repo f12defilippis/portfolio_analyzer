@@ -6,15 +6,16 @@ import numpy as np
 import pandas as pd
 from service import CalculateDataService, GraphService, PrintTextService
 import plotly.graph_objects as go
+import plotly.figure_factory as ff
 
 
-def render_modal(data, open_button, close_button):
+def render_modal(data, open_button, close_button, capital, risk, num_strategies):
     visible = open_button and not close_button
     modal = [
         dbc.Modal(
             [
                 dbc.ModalHeader("Selection Analysis"),
-                dbc.ModalBody(render_modal_body(data)),
+                dbc.ModalBody(render_modal_body(data, capital, risk, num_strategies)),
                 dbc.ModalFooter(
                     dbc.Button("Close", id="close-xl", className="ml-auto")
                 ),
@@ -28,32 +29,58 @@ def render_modal(data, open_button, close_button):
     return modal
 
 
-def render_modal_body(data):
+def render_modal_body(data, capital, risk, num_strategies):
 
     ret = []
 
     if not data.empty:
-        data = data.sort_values(by=['date', 'time'])
-        data_controlled, data = CalculateDataService.get_controlled_and_uncontrolled_data(data, 30000, 2.5, 3000)
+        data_original_nomm = data.sort_values(by=['date', 'time'])
+        CalculateDataService.calculate_values(data_original_nomm, False, capital, risk, False, False)
+        data_controlled, data, data_original_nomm = CalculateDataService.get_controlled_and_uncontrolled_data(data_original_nomm, capital, risk, capital*0.1)
 
         # rotate portfolio
-        data_rotated = CalculateDataService.rotate_portfolio(data, 6)
+        data_rotated = CalculateDataService.rotate_portfolio(data_original_nomm, data, num_strategies, "np_avgdd")
         if not data_rotated.empty:
             data_rotated = data_rotated.sort_values(by=['date', 'time'])
-            CalculateDataService.calculate_values(data_rotated, False, 30000, 2.5, False, True)
+            CalculateDataService.calculate_values(data_rotated, False, capital, risk, False, True)
             table_month_rotated = pd.pivot_table(data_rotated, values='profit_net', index=['year'],
                                          columns=['month'], aggfunc=np.sum).fillna(0)
 
         # rotate and control portfolio
-        data_controlled_rotated = CalculateDataService.rotate_portfolio(data_controlled, 6)
+        data_controlled_rotated = CalculateDataService.rotate_portfolio(data_original_nomm, data_controlled, num_strategies, "np_avgdd")
         if not data_controlled_rotated.empty:
             data_controlled_rotated = data_controlled_rotated.sort_values(by=['date', 'time'])
-            CalculateDataService.calculate_values(data_controlled_rotated, True, 30000, 2.5, False, True)
+            CalculateDataService.calculate_values(data_controlled_rotated, True, capital, risk, False, True)
             table_month_controlled_rotated = pd.pivot_table(data_controlled_rotated, values='profit_net', index=['year'],
                                          columns=['month'], aggfunc=np.sum).fillna(0)
 
-        data_merged = CalculateDataService.calculate_data_merged(data, data_controlled, data_rotated, data_controlled_rotated)
+        # rotate portfolio
+        data_rotated_corr = CalculateDataService.rotate_portfolio(data_original_nomm, data, num_strategies, "np_corr")
+        if not data_rotated_corr.empty:
+            data_rotated_corr = data_rotated_corr.sort_values(by=['date', 'time'])
+            CalculateDataService.calculate_values(data_rotated_corr, False, capital, risk, False, True)
+            table_month_rotated_corr = pd.pivot_table(data_rotated_corr, values='profit_net', index=['year'],
+                                         columns=['month'], aggfunc=np.sum).fillna(0)
 
+        # rotate and control portfolio
+        data_controlled_rotated_corr = CalculateDataService.rotate_portfolio(data_original_nomm, data_controlled, num_strategies, "np_corr")
+        if not data_controlled_rotated_corr.empty:
+            data_controlled_rotated_corr = data_controlled_rotated_corr.sort_values(by=['date', 'time'])
+            CalculateDataService.calculate_values(data_controlled_rotated_corr, True, capital, risk, False, True)
+            table_month_controlled_rotated_corr = pd.pivot_table(data_controlled_rotated_corr, values='profit_net', index=['year'],
+                                         columns=['month'], aggfunc=np.sum).fillna(0)
+
+
+
+        data_merged = CalculateDataService.calculate_data_merged(data, data_controlled, data_rotated, data_controlled_rotated, capital, risk)
+
+        data_correlated = CalculateDataService.correlate(data)
+        z = data_correlated.to_numpy().tolist()
+        x = data_correlated.columns.to_numpy().tolist()
+        y = data_correlated.columns.to_numpy().tolist()
+        z_text = data_correlated.to_numpy().round(2).tolist()
+
+        fig_correlated = ff.create_annotated_heatmap(z, x=x, y=y, annotation_text=z_text, colorscale='Viridis')
 
         table_month = pd.pivot_table(data, values='profit_net', index=['year'],
                                      columns=['month'], aggfunc=np.sum).fillna(0)
@@ -124,10 +151,13 @@ def render_modal_body(data):
                 dbc.Col(dcc.Graph(id='equity_merged', figure=fig_merged), width=12),
             ]),
             dbc.Row([
-                dbc.Col(PrintTextService.performance_report(data, 30000, 1), width=3),
-                dbc.Col(PrintTextService.performance_report(data_controlled, 30000, 1), width=3),
-                dbc.Col(PrintTextService.performance_report(data_rotated, 30000, 1), width=3),
-                dbc.Col(PrintTextService.performance_report(data_controlled_rotated, 30000, 1), width=3),
+                dbc.Col(PrintTextService.performance_report(data, capital, 1), width=3),
+                dbc.Col(PrintTextService.performance_report(data_controlled, capital, 1), width=3),
+                dbc.Col(PrintTextService.performance_report(data_rotated, capital, 1), width=3),
+                dbc.Col(PrintTextService.performance_report(data_controlled_rotated, capital, 1), width=3),
+            ]),
+            dbc.Row([
+                dbc.Col(dcc.Graph(id='correlation_graph', figure=fig_correlated), width=12),
             ]),
 
         ]
