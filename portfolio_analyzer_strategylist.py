@@ -29,6 +29,7 @@ def render_page(capital, risk, num_strategies):
 
     columns = [
         dict(id='name', name='Strategy'),
+        #dict(id='enabled', name='Enabled'),
         dict(id='symbol', name='Symbol'),
         dict(id='class', name='Class'),
         dict(id='slippage', name='Slippage', type='numeric', format=money),
@@ -66,6 +67,15 @@ def render_page(capital, risk, num_strategies):
                     {
                         'if': {'row_index': 'odd'},
                         'backgroundColor': 'rgb(248, 248, 248)'
+                    }
+                ] +
+                [
+                    {
+                        'if': {
+                            'filter_query': '{enabled} < 1',
+                        },
+                        'backgroundColor': '#000000',
+                        'color': 'yellow'
                     }
                 ] +
                 [
@@ -168,6 +178,7 @@ def render_page(capital, risk, num_strategies):
                         'color': 'white'
                     }
                 ]
+
         )
     )
 

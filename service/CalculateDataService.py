@@ -209,6 +209,8 @@ def calculate_strategy_summary(strategy, first_trade, selected_trade):
     strategy['profit_6m'] = six_month_ago_trade['profit_net'].sum()
     strategy['profit_9m'] = nine_month_ago_trade['profit_net'].sum()
     strategy['profit_1y'] = one_year_ago_trade['profit_net'].sum()
+    calculate_equity_control(selected_trade, 3000)
+    strategy['enabled'] = selected_trade.iloc[len(selected_trade)-1].enabled
 
 
 def get_controlled_and_uncontrolled_data(data, capital, risk, dd_limit):

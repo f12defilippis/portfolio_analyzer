@@ -74,6 +74,22 @@ def render_modal_body(data, capital, risk, num_strategies):
 
         data_merged = CalculateDataService.calculate_data_merged(data, data_controlled, data_rotated, data_controlled_rotated, data_rotated_corr, data_controlled_rotated_corr, capital, risk)
 
+        all_summaries = []
+
+        all_types = data_merged["type"].unique()
+        for one_type in all_types:
+            data_selected = data_merged[data_merged.type == one_type]
+            summary = pd.DataFrame()
+            first_trade = data_selected.iloc[1:2, :]
+            CalculateDataService.calculate_strategy_summary(summary, first_trade, data_selected)
+            summary["type"] = one_type
+            all_summaries.append(summary)
+
+        data_merged_summary = pd.concat(all_summaries)
+
+        columns = GraphService.get_columns_for_summary()
+        summary_table = GraphService.draw_summary_table(columns, data_merged_summary)
+
         data_correlated = CalculateDataService.correlate(data)
         z = data_correlated.to_numpy().tolist()
         x = data_correlated.columns.to_numpy().tolist()
@@ -168,6 +184,9 @@ def render_modal_body(data, capital, risk, num_strategies):
             ]),
             dbc.Row([
                 dbc.Col(dcc.Graph(id='correlation_graph', figure=fig_correlated), width=12),
+            ]),
+            dbc.Row([
+                dbc.Col(summary_table, width=12),
             ]),
 
         ]
