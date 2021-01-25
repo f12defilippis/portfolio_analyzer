@@ -1,6 +1,7 @@
 import plotly.express as px
 import dash_table
 from dash_table import FormatTemplate
+import plotly.graph_objects as go
 
 
 def draw_equity(table):
@@ -46,17 +47,20 @@ def draw_data_table(table, row_index_name, id_table):
     return datatable
 
 
-def draw_summary_table(columns, data_list):
+def draw_summary_table(columns, data_list, id_table):
     layout = dash_table.DataTable(
-        id='strategy_list_table',
+        id=id_table,
         columns=columns,
         data=data_list.to_dict('records'),
         sort_action='native',
-        row_selectable='multi',
-        selected_rows=[],
         style_header={
             'backgroundColor': 'rgb(230, 230, 230)',
             'fontWeight': 'bold'
+        },
+        style_cell={
+            'overflow': 'hidden',
+            'textOverflow': 'ellipsis',
+            'maxWidth': 0,
         },
         style_data_conditional=(
                 [
@@ -188,3 +192,23 @@ def get_columns_for_summary():
         dict(id='profit_1y', name='Profit 1 Year', type='numeric', format=money),
     ]
     return columns
+
+
+def draw_equity_and_drawdown(data):
+    my_layout = go.Layout({"title": "Equity",
+                           "showlegend": False})
+
+    fig = go.Figure(layout=my_layout)
+    fig.add_trace(
+        go.Scatter(x=data['date'], y=data['equity_calc'],
+                   fill='tozeroy',
+                   mode='none'  # override default markers+lines
+                   ))
+    fig.add_trace(
+        go.Scatter(x=data['date'], y=data['drawdown'],
+                   fill='tozeroy',
+                   mode='none'  # override default markers+lines
+                   ))
+    fig_drawdown = px.area(data, x='date', y='drawdown')
+
+    return fig, fig_drawdown

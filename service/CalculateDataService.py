@@ -20,6 +20,7 @@ def load_data(capital, risk):
     data = data.sort_values(by='date')
     data['month'] = pd.DatetimeIndex(data['date']).month
     data['year'] = pd.DatetimeIndex(data['date']).year
+    data['week'] = pd.DatetimeIndex(data['date']).week
 
     return data
 
@@ -242,7 +243,13 @@ def get_controlled_and_uncontrolled_data(data, capital, risk, dd_limit):
     calculate_values(data_uncontrolled, False, capital, risk, False, True)
     calculate_values(data_uncontrolled_nomm, False, capital, risk, False, False)
 
-    return data_controlled, data_uncontrolled, data_uncontrolled_nomm
+    table_month = pd.pivot_table(data_uncontrolled, values='profit_net', index=['year'],
+                                 columns=['month'], aggfunc=np.sum).fillna(0)
+
+    table_month_controlled = pd.pivot_table(data_controlled, values='profit_net', index=['year'],
+                                            columns=['month'], aggfunc=np.sum).fillna(0)
+
+    return data_controlled, data_uncontrolled, data_uncontrolled_nomm, table_month, table_month_controlled
 
 
 def calculate_data_merged(data, data_controlled, data_rotated, data_controlled_rotated, data_rotated_corr, data_controlled_rotated_corr, capital, risk):
@@ -253,12 +260,20 @@ def calculate_data_merged(data, data_controlled, data_rotated, data_controlled_r
     data_rotated_corr["type"] = "Rotated Corr"
     data_controlled_rotated_corr["type"] = "ControlledRotatedCorr"
 
-    data_syncdate = data[
-        pd.to_datetime(data['date']) >= pd.to_datetime(data_rotated.date.array[0])].copy()
-    data_controlled_syncdate = data_controlled[
-        pd.to_datetime(data_controlled['date']) >= pd.to_datetime(data_controlled_rotated.date.array[0])].copy()
-    calculate_values(data_controlled_syncdate, True, capital, risk, False, True)
-    calculate_values(data_syncdate, False, capital, risk, False, True)
+    if len(data_rotated) > 0:
+        data_syncdate = data[
+            pd.to_datetime(data['date']) >= pd.to_datetime(data_rotated.date.array[0])].copy()
+        calculate_values(data_syncdate, False, capital, risk, False, True)
+    else:
+        data_syncdate = data.copy()
+
+
+    if len(data_controlled_rotated) > 0:
+        data_controlled_syncdate = data_controlled[
+            pd.to_datetime(data_controlled['date']) >= pd.to_datetime(data_controlled_rotated.date.array[0])].copy()
+        calculate_values(data_controlled_syncdate, True, capital, risk, False, True)
+    else:
+        data_controlled_syncdate = data_controlled.copy()
 
     frames = [data_syncdate, data_controlled_syncdate, data_rotated,
               data_controlled_rotated, data_rotated_corr, data_controlled_rotated_corr]
@@ -270,6 +285,25 @@ def calculate_data_merged(data, data_controlled, data_rotated, data_controlled_r
 def correlate(data):
     data_correlation = data[data.year >= (data.year.max()-1)].copy()
     correlation_table = pd.pivot_table(data_correlation, values='profit_net', index=['year', 'month'],
+                                       columns=['strategy'], aggfunc=np.sum).fillna(0)
+    watchlist = correlation_table.columns.tolist()
+    equity_df = pd.DataFrame()
+    for ticker in watchlist:
+        equity_df[ticker] = correlation_table[ticker].cumsum()
+    change_df = pd.DataFrame()
+    for ticker in watchlist:
+        change_df[ticker] = equity_df[ticker].pct_change().fillna(0)
+
+    data_correlation = change_df.corr()
+    return data_correlation
+
+
+def correlate_data_with_parameter(data, how_many_months_back, method):
+    last_date = Utils.get_last_date_from_dataframe(data, "date")
+    date_ref = last_date - relativedelta(months=how_many_months_back)
+    data_correlation = data[pd.to_datetime(data['date']) >= date_ref].copy()
+
+    correlation_table = pd.pivot_table(data_correlation, values='profit_net', index=['year', 'month' if method == 'month' else 'week'],
                                        columns=['strategy'], aggfunc=np.sum).fillna(0)
     watchlist = correlation_table.columns.tolist()
     equity_df = pd.DataFrame()

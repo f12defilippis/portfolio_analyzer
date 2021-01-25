@@ -2,6 +2,7 @@ import datetime
 import base64
 from dateutil.relativedelta import relativedelta
 from datetime import date
+import pandas as pd
 
 
 def next_weekday(d, weekday):
@@ -32,3 +33,7 @@ def get_dates_from_today():
     nine_month_ago = today - relativedelta(months=9)
     one_year_ago = today - relativedelta(months=12)
     return today, one_month_ago, three_month_ago, six_month_ago, nine_month_ago, one_year_ago
+
+
+def get_last_date_from_dataframe(data, col_name):
+    return pd.to_datetime(data[col_name].iloc[len(data)-1])
