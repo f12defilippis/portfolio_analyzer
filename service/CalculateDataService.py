@@ -92,7 +92,7 @@ def equitycontrol_generator(stop_trigger, restart_trigger):
     return service_dataframe.enabled_new
 
 
-def rotate_portfolio(data_original_nomm, data, num_strategies, method):
+def rotate_portfolio(data_original_nomm, data, num_strategies, method, how_many_months, monthly_or_weekly):
     number_of_live_strategies = num_strategies
     live_trade = []
     first_date = pd.to_datetime(data.iloc[1:2, :1].date.max())
@@ -116,7 +116,7 @@ def rotate_portfolio(data_original_nomm, data, num_strategies, method):
             if method == "np_avgdd":
                 table_strategy = calculate_ranking_npavgdd(data_original_nomm[pd.to_datetime(data['date']) <= date_ref], date_ref)
             elif method == "np_corr":
-                table_strategy = calculate_ranking_npcorr(data_original_nomm[pd.to_datetime(data['date']) <= date_ref], date_ref)
+                table_strategy = calculate_ranking_npcorr(data_original_nomm[pd.to_datetime(data['date']) <= date_ref], date_ref, how_many_months, monthly_or_weekly)
             selected_strategies = table_strategy.iloc[1:number_of_live_strategies + 1, :].index.unique().to_numpy()
             for strategy in selected_strategies:
                 selected_trade = data[data.strategy == strategy].copy()
@@ -124,7 +124,7 @@ def rotate_portfolio(data_original_nomm, data, num_strategies, method):
                             pd.to_datetime(selected_trade['date']) < date_ref_next_month)
                 selected_trade = selected_trade.loc[mask]
                 live_trade.append(selected_trade)
-            print("Method: " + str(method) + " Year: " + str(year) + " Month: " + str(month) + " Trade size: " + str(len(live_trade)))
+            print("Method: " + str(method) + " Period: " + str(how_many_months) + " Type: " + monthly_or_weekly + " Year: " + str(year) + " Month: " + str(month) + " Trade size: " + str(len(live_trade)))
             print(selected_strategies)
             print("-------------------------------------")
 
@@ -161,7 +161,7 @@ def calculate_ranking_npavgdd(data, date_ref):
     return table_strategy[table_strategy.profit_net > 0]
 
 
-def calculate_ranking_npcorr(data, date_ref):
+def calculate_ranking_npcorr(data, date_ref, how_many_months, method):
     one_year_ago = date_ref - relativedelta(months=12)
     data_filtered = data[pd.to_datetime(data['date']) > one_year_ago].copy()
 
@@ -171,7 +171,7 @@ def calculate_ranking_npcorr(data, date_ref):
 
     correlation_index = table_strategy_np.index.size
     while data_filtered.size > 0:
-        data_correlated = correlate(data_filtered)
+        data_correlated = correlate_data_with_parameter(data_filtered, how_many_months, method)
         strategy_correlated_sorted = data_correlated.sum().sort_values(ascending=False).index.values
         strategy_max_correlated = strategy_correlated_sorted[0]
         table_strategy_np.loc[table_strategy_np.index == strategy_max_correlated, 'correlation_index'] = correlation_index
@@ -252,13 +252,37 @@ def get_controlled_and_uncontrolled_data(data, capital, risk, dd_limit):
     return data_controlled, data_uncontrolled, data_uncontrolled_nomm, table_month, table_month_controlled
 
 
-def calculate_data_merged(data, data_controlled, data_rotated, data_controlled_rotated, data_rotated_corr, data_controlled_rotated_corr, capital, risk):
+def calculate_data_merged(data, data_controlled, data_rotated, data_controlled_rotated,
+                                                                         data_rotated_corr, data_controlled_rotated_corr,
+                                                                         data_rotated_corr_3m, data_controlled_rotated_corr_3m,
+                                                                         data_rotated_corr_6m, data_controlled_rotated_corr_6m,
+                                                                         data_rotated_corr_9m, data_controlled_rotated_corr_9m,
+                                                                         data_rotated_corr_12w, data_controlled_rotated_corr_12w,
+                                                                         data_rotated_corr_3w, data_controlled_rotated_corr_3w,
+                                                                         data_rotated_corr_6w, data_controlled_rotated_corr_6w,
+                                                                         data_rotated_corr_9w, data_controlled_rotated_corr_9w,
+                                                                         capital, risk):
     data["type"] = "Original"
     data_controlled["type"] = "Controlled"
     data_rotated["type"] = "Rotated"
     data_controlled_rotated["type"] = "ControlledRotated"
     data_rotated_corr["type"] = "Rotated Corr"
     data_controlled_rotated_corr["type"] = "ControlledRotatedCorr"
+    data_rotated_corr_3m["type"] = "Rotated Corr 3m"
+    data_controlled_rotated_corr_3m["type"] = "ControlledRotatedCorr 3m"
+    data_rotated_corr_6m["type"] = "Rotated Corr 6m"
+    data_controlled_rotated_corr_6m["type"] = "ControlledRotatedCorr 6m"
+    data_rotated_corr_9m["type"] = "Rotated Corr 9m"
+    data_controlled_rotated_corr_9m["type"] = "ControlledRotatedCorr 9m"
+
+    data_rotated_corr_12w["type"] = "Rotated Corr 12w"
+    data_controlled_rotated_corr_12w["type"] = "ControlledRotatedCorr 12w"
+    data_rotated_corr_3w["type"] = "Rotated Corr 3w"
+    data_controlled_rotated_corr_3w["type"] = "ControlledRotatedCorr 3w"
+    data_rotated_corr_6w["type"] = "Rotated Corr 6w"
+    data_controlled_rotated_corr_6w["type"] = "ControlledRotatedCorr 6w"
+    data_rotated_corr_9w["type"] = "Rotated Corr 9w"
+    data_controlled_rotated_corr_9w["type"] = "ControlledRotatedCorr 9w"
 
     if len(data_rotated) > 0:
         data_syncdate = data[
@@ -276,7 +300,13 @@ def calculate_data_merged(data, data_controlled, data_rotated, data_controlled_r
         data_controlled_syncdate = data_controlled.copy()
 
     frames = [data_syncdate, data_controlled_syncdate, data_rotated,
-              data_controlled_rotated, data_rotated_corr, data_controlled_rotated_corr]
+              data_controlled_rotated, data_rotated_corr, data_controlled_rotated_corr, data_rotated_corr_3m, data_controlled_rotated_corr_3m,
+                                                                         data_rotated_corr_6m, data_controlled_rotated_corr_6m,
+                                                                         data_rotated_corr_9m, data_controlled_rotated_corr_9m,
+                                                                         data_rotated_corr_12w, data_controlled_rotated_corr_12w,
+                                                                         data_rotated_corr_3w, data_controlled_rotated_corr_3w,
+                                                                         data_rotated_corr_6w, data_controlled_rotated_corr_6w,
+                                                                         data_rotated_corr_9w, data_controlled_rotated_corr_9w]
 
     data_merged = pd.concat(frames)
     return data_merged

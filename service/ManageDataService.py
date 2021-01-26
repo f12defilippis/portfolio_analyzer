@@ -33,23 +33,37 @@ def merge_dataframe(data_original, data_anagrafica):
     return data
 
 
-def get_rotated_data(data_original_nomm, data, num_strategies, capital, risk, method):
-    data_rotated = CalculateDataService.rotate_portfolio(data_original_nomm, data, num_strategies, method)
+def get_rotated_data(data_original_nomm, data, num_strategies, capital, risk, method, how_many_month, monthly_or_weekly, controlled):
+    data_rotated = CalculateDataService.rotate_portfolio(data_original_nomm, data, num_strategies, method, how_many_month, monthly_or_weekly)
     table_month_rotated = pd.DataFrame()
     if not data_rotated.empty:
         data_rotated = data_rotated.sort_values(by=['date', 'time'])
-        CalculateDataService.calculate_values(data_rotated, False, capital, risk, False, True)
+        CalculateDataService.calculate_values(data_rotated, controlled, capital, risk, False, True)
         table_month_rotated = pd.pivot_table(data_rotated, values='profit_net', index=['year'],
                                              columns=['month'], aggfunc=np.sum).fillna(0)
     return data_rotated, table_month_rotated
 
 
-def get_summary(data, data_controlled, data_rotated,
-                data_controlled_rotated, data_rotated_corr,
-                data_controlled_rotated_corr, capital, risk):
-    data_merged = CalculateDataService.calculate_data_merged(data, data_controlled, data_rotated,
-                                                             data_controlled_rotated, data_rotated_corr,
-                                                             data_controlled_rotated_corr, capital, risk)
+def get_summary(data, data_controlled, data_rotated, data_controlled_rotated,
+                                                                         data_rotated_corr, data_controlled_rotated_corr,
+                                                                         data_rotated_corr_3m, data_controlled_rotated_corr_3m,
+                                                                         data_rotated_corr_6m, data_controlled_rotated_corr_6m,
+                                                                         data_rotated_corr_9m, data_controlled_rotated_corr_9m,
+                                                                         data_rotated_corr_12w, data_controlled_rotated_corr_12w,
+                                                                         data_rotated_corr_3w, data_controlled_rotated_corr_3w,
+                                                                         data_rotated_corr_6w, data_controlled_rotated_corr_6w,
+                                                                         data_rotated_corr_9w, data_controlled_rotated_corr_9w,
+                                                                         capital, risk):
+    data_merged = CalculateDataService.calculate_data_merged(data, data_controlled, data_rotated, data_controlled_rotated,
+                                                                         data_rotated_corr, data_controlled_rotated_corr,
+                                                                         data_rotated_corr_3m, data_controlled_rotated_corr_3m,
+                                                                         data_rotated_corr_6m, data_controlled_rotated_corr_6m,
+                                                                         data_rotated_corr_9m, data_controlled_rotated_corr_9m,
+                                                                         data_rotated_corr_12w, data_controlled_rotated_corr_12w,
+                                                                         data_rotated_corr_3w, data_controlled_rotated_corr_3w,
+                                                                         data_rotated_corr_6w, data_controlled_rotated_corr_6w,
+                                                                         data_rotated_corr_9w, data_controlled_rotated_corr_9w,
+                                                                         capital, risk)
 
     data_merged.to_csv(r'Z:\portfolio_analyzer/data_merged.csv')
 
