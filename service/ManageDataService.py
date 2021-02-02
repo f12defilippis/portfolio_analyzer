@@ -46,23 +46,9 @@ def get_rotated_data(data_original_nomm, data, num_strategies, capital, risk, me
 
 def get_summary(data, data_controlled, data_rotated, data_controlled_rotated,
                                                                          data_rotated_corr, data_controlled_rotated_corr,
-                                                                         data_rotated_corr_3m, data_controlled_rotated_corr_3m,
-                                                                         data_rotated_corr_6m, data_controlled_rotated_corr_6m,
-                                                                         data_rotated_corr_9m, data_controlled_rotated_corr_9m,
-                                                                         data_rotated_corr_12w, data_controlled_rotated_corr_12w,
-                                                                         data_rotated_corr_3w, data_controlled_rotated_corr_3w,
-                                                                         data_rotated_corr_6w, data_controlled_rotated_corr_6w,
-                                                                         data_rotated_corr_9w, data_controlled_rotated_corr_9w,
                                                                          capital, risk):
     data_merged = CalculateDataService.calculate_data_merged(data, data_controlled, data_rotated, data_controlled_rotated,
                                                                          data_rotated_corr, data_controlled_rotated_corr,
-                                                                         data_rotated_corr_3m, data_controlled_rotated_corr_3m,
-                                                                         data_rotated_corr_6m, data_controlled_rotated_corr_6m,
-                                                                         data_rotated_corr_9m, data_controlled_rotated_corr_9m,
-                                                                         data_rotated_corr_12w, data_controlled_rotated_corr_12w,
-                                                                         data_rotated_corr_3w, data_controlled_rotated_corr_3w,
-                                                                         data_rotated_corr_6w, data_controlled_rotated_corr_6w,
-                                                                         data_rotated_corr_9w, data_controlled_rotated_corr_9w,
                                                                          capital, risk)
 
     data_merged.to_csv(r'Z:\portfolio_analyzer/data_merged.csv')

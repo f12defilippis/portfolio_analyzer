@@ -1,11 +1,7 @@
 import dash_bootstrap_components as dbc
-import dash_html_components as html
 import plotly.express as px
 import dash_core_components as dcc
-import numpy as np
-import pandas as pd
-from service import CalculateDataService, GraphService, PrintTextService, ManageDataService
-import plotly.graph_objects as go
+from service import CalculateDataService, GraphService, ManageDataService
 import plotly.figure_factory as ff
 
 
@@ -36,7 +32,7 @@ def render_modal_body(data, capital, risk, num_strategies):
         data_original_nomm = data.sort_values(by=['date', 'time'])
         CalculateDataService.calculate_values(data_original_nomm, False, capital, risk, False, False)
         data_controlled, data, data_original_nomm, table_month, table_month_controlled = CalculateDataService.get_controlled_and_uncontrolled_data(
-            data_original_nomm, capital, risk, capital * 0.1)
+            data_original_nomm, capital, risk, 1000)
 
         # rotate portfolio
         data_rotated, table_month_rotated = ManageDataService.get_rotated_data(data_original_nomm, data, num_strategies, capital, risk, "np_avgdd", 12, "month", False)
@@ -45,38 +41,9 @@ def render_modal_body(data, capital, risk, num_strategies):
         data_rotated_corr, table_month_rotated_corr = ManageDataService.get_rotated_data(data_original_nomm, data, num_strategies, capital, risk, "np_corr", 12, "month", False)
         data_controlled_rotated_corr, table_month_controlled_rotated_corr = ManageDataService.get_rotated_data(data_original_nomm, data_controlled, num_strategies, capital, risk, "np_corr", 12, "month", True)
 
-        data_rotated_corr_3m, table_month_rotated_corr_3m = ManageDataService.get_rotated_data(data_original_nomm, data, num_strategies, capital, risk, "np_corr", 3, "month", False)
-        data_controlled_rotated_corr_3m, table_month_controlled_rotated_corr_3m = ManageDataService.get_rotated_data(data_original_nomm, data_controlled, num_strategies, capital, risk, "np_corr", 3, "month", True)
-
-        data_rotated_corr_6m, table_month_rotated_corr_6m = ManageDataService.get_rotated_data(data_original_nomm, data, num_strategies, capital, risk, "np_corr", 6, "month", False)
-        data_controlled_rotated_corr_6m, table_month_controlled_rotated_corr_6m = ManageDataService.get_rotated_data(data_original_nomm, data_controlled, num_strategies, capital, risk, "np_corr", 6, "month", True)
-
-        data_rotated_corr_9m, table_month_rotated_corr_9m = ManageDataService.get_rotated_data(data_original_nomm, data, num_strategies, capital, risk, "np_corr", 9, "month", False)
-        data_controlled_rotated_corr_9m, table_month_controlled_rotated_corr_9m = ManageDataService.get_rotated_data(data_original_nomm, data_controlled, num_strategies, capital, risk, "np_corr", 9, "month", True)
-
-        data_rotated_corr_12w, table_month_rotated_corr_12w = ManageDataService.get_rotated_data(data_original_nomm, data, num_strategies, capital, risk, "np_corr", 12, "weekly", False)
-        data_controlled_rotated_corr_12w, table_month_controlled_rotated_corr_12w = ManageDataService.get_rotated_data(data_original_nomm, data_controlled, num_strategies, capital, risk, "np_corr", 12, "weekly", True)
-
-        data_rotated_corr_3w, table_month_rotated_corr_3w = ManageDataService.get_rotated_data(data_original_nomm, data, num_strategies, capital, risk, "np_corr", 3, "weekly", False)
-        data_controlled_rotated_corr_3w, table_month_controlled_rotated_corr_3w = ManageDataService.get_rotated_data(data_original_nomm, data_controlled, num_strategies, capital, risk, "np_corr", 3, "weekly", True)
-
-        data_rotated_corr_6w, table_month_rotated_corr_6w = ManageDataService.get_rotated_data(data_original_nomm, data, num_strategies, capital, risk, "np_corr", 6, "weekly", False)
-        data_controlled_rotated_corr_6w, table_month_controlled_rotated_corr_6w = ManageDataService.get_rotated_data(data_original_nomm, data_controlled, num_strategies, capital, risk, "np_corr", 6, "weekly", True)
-
-        data_rotated_corr_9w, table_month_rotated_corr_9w = ManageDataService.get_rotated_data(data_original_nomm, data, num_strategies, capital, risk, "np_corr", 9, "weekly", False)
-        data_controlled_rotated_corr_9w, table_month_controlled_rotated_corr_9w = ManageDataService.get_rotated_data(data_original_nomm, data_controlled, num_strategies, capital, risk, "np_corr", 9, "weekly", True)
-
-
         # get merged summary
         data_merged, data_merged_summary = ManageDataService.get_summary(data, data_controlled, data_rotated, data_controlled_rotated,
                                                                          data_rotated_corr, data_controlled_rotated_corr,
-                                                                         data_rotated_corr_3m, data_controlled_rotated_corr_3m,
-                                                                         data_rotated_corr_6m, data_controlled_rotated_corr_6m,
-                                                                         data_rotated_corr_9m, data_controlled_rotated_corr_9m,
-                                                                         data_rotated_corr_12w, data_controlled_rotated_corr_12w,
-                                                                         data_rotated_corr_3w, data_controlled_rotated_corr_3w,
-                                                                         data_rotated_corr_6w, data_controlled_rotated_corr_6w,
-                                                                         data_rotated_corr_9w, data_controlled_rotated_corr_9w,
                                                                          capital, risk)
 
         columns = GraphService.get_columns_for_summary()

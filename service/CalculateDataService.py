@@ -3,6 +3,8 @@ import pandas as pd
 import Utils
 from dateutil.relativedelta import relativedelta
 from service import ManageDataService
+from scipy import stats
+import math
 
 
 def load_data(capital, risk):
@@ -25,7 +27,7 @@ def load_data(capital, risk):
     return data
 
 
-def calculate_values(data, have_enabled, capital, risk, single_strategy, position_sizing):
+def calculate_values(data, have_enabled, capital, risk, single_strategy, position_sizing, slippage=True):
     max_margin_per_position = int(capital * 0.15)
 
     data['max_con'] = (max_margin_per_position / data['margin'] / data['unity']).astype(int)
@@ -37,7 +39,7 @@ def calculate_values(data, have_enabled, capital, risk, single_strategy, positio
         data['multiplier'] = data['enabled'].fillna(1) * data['ncon'] * data['unity']
     else:
         data['multiplier'] = data['ncon'] * data['unity']
-    data['profit_net'] = (data['profit'] - data['slippage']) * data['multiplier']
+    data['profit_net'] = (data['profit'] - data['slippage']) * data['multiplier'] if slippage else data['profit'] * data['multiplier']
     data['equity_calc'] = data['profit_net'].cumsum()
     if single_strategy:
         data['equity_calc_single_strategy'] = data['profit_net'].cumsum()
@@ -66,6 +68,8 @@ def calculate_equity_control(data, ddlimit):
     data['restart_trigger'] = np.where(
         (data['upper_band501'] < data['equity_calc']) & (data['stopping_point'].shift(1) < data['equity_calc']), 1,
         np.where(data['equity_calc'] > data['equity_peak'].shift(1), 1, 0))
+    data['stopping_point'] = np.where(data['restart_trigger'] <= 0, data['stopping_point'].shift(1), data['stopping_point'])
+
     data['enabled'] = equitycontrol_generator(data.stop_trigger, data.restart_trigger)
 
 
@@ -186,14 +190,23 @@ def calculate_ranking_npcorr(data, date_ref, how_many_months, method):
 
 
 def calculate_strategy_summary(strategy, first_trade, selected_trade):
+    selected_trade['one'] = 1
+    selected_trade['cumcount'] = selected_trade['one'].cumsum()
+    operation_per_year = selected_trade.groupby('year').sum()['one'].max()
+    slope, intercept, r_value, p_value, std_err = stats.linregress(selected_trade['cumcount'], selected_trade['equity_calc'].array)
+
+    k_ratio = (slope / std_err) * (math.sqrt(operation_per_year) / selected_trade['one'].count())
+
     strategy['slippage'] = first_trade['slippage']
     strategy['stop_loss'] = first_trade['stop'] * first_trade['unity']
     strategy['oos_from'] = first_trade['oos_from']
     strategy['profit'] = selected_trade['profit_net'].sum()
     strategy['max_dd'] = selected_trade['max_drawdown'].min() * -1
     strategy['np_maxdd'] = round(strategy['profit'] / strategy['max_dd'], 2)
-    strategy['num_trades'] = selected_trade['profit_net'].count()
+    strategy['num_trades'] = selected_trade[selected_trade['profit_net'] != 0].profit_net.count()
     strategy['avg_trade'] = round(strategy['profit'] / strategy['num_trades'], 2)
+    strategy['profit_factor'] = round(selected_trade[selected_trade['profit_net'] > 0].profit_net.sum() / selected_trade[selected_trade['profit_net'] < 0].profit_net.sum() * -1, 2)
+    strategy['k_ratio'] = round(k_ratio, 2)
     strategy['perc_profit'] = round(selected_trade[selected_trade['profit_net'] > 0].profit_net.count() / selected_trade.profit_net.count(), 2)
     strategy['worst_trade'] = selected_trade['profit_net'].min() * -1
     grouped_st = selected_trade.groupby(by=["month", "year"], dropna=False)['profit_net'].sum()
@@ -210,8 +223,10 @@ def calculate_strategy_summary(strategy, first_trade, selected_trade):
     strategy['profit_6m'] = six_month_ago_trade['profit_net'].sum()
     strategy['profit_9m'] = nine_month_ago_trade['profit_net'].sum()
     strategy['profit_1y'] = one_year_ago_trade['profit_net'].sum()
-    calculate_equity_control(selected_trade, 3000)
-    strategy['enabled'] = selected_trade.iloc[len(selected_trade)-1].enabled
+    sel_copy = selected_trade.copy()
+    calculate_values(sel_copy, False, 30000, 2.5, True, False, slippage=False)
+    calculate_equity_control(sel_copy, 3000)
+    strategy['enabled'] = sel_copy.iloc[len(sel_copy)-1].enabled
 
 
 def get_controlled_and_uncontrolled_data(data, capital, risk, dd_limit):
@@ -229,6 +244,7 @@ def get_controlled_and_uncontrolled_data(data, capital, risk, dd_limit):
         calculate_values(data_onestrategy, False, capital, risk, True, True)
         all_operations_uncontrolled.append(data_onestrategy.copy())
 
+        calculate_values(data_onestrategy, False, capital, risk, True, False, slippage=False)
         calculate_equity_control(data_onestrategy, dd_limit)
         calculate_values(data_onestrategy, True, capital, risk, True, True)
         all_operations.append(data_onestrategy)
@@ -254,13 +270,6 @@ def get_controlled_and_uncontrolled_data(data, capital, risk, dd_limit):
 
 def calculate_data_merged(data, data_controlled, data_rotated, data_controlled_rotated,
                                                                          data_rotated_corr, data_controlled_rotated_corr,
-                                                                         data_rotated_corr_3m, data_controlled_rotated_corr_3m,
-                                                                         data_rotated_corr_6m, data_controlled_rotated_corr_6m,
-                                                                         data_rotated_corr_9m, data_controlled_rotated_corr_9m,
-                                                                         data_rotated_corr_12w, data_controlled_rotated_corr_12w,
-                                                                         data_rotated_corr_3w, data_controlled_rotated_corr_3w,
-                                                                         data_rotated_corr_6w, data_controlled_rotated_corr_6w,
-                                                                         data_rotated_corr_9w, data_controlled_rotated_corr_9w,
                                                                          capital, risk):
     data["type"] = "Original"
     data_controlled["type"] = "Controlled"
@@ -268,21 +277,6 @@ def calculate_data_merged(data, data_controlled, data_rotated, data_controlled_r
     data_controlled_rotated["type"] = "ControlledRotated"
     data_rotated_corr["type"] = "Rotated Corr"
     data_controlled_rotated_corr["type"] = "ControlledRotatedCorr"
-    data_rotated_corr_3m["type"] = "Rotated Corr 3m"
-    data_controlled_rotated_corr_3m["type"] = "ControlledRotatedCorr 3m"
-    data_rotated_corr_6m["type"] = "Rotated Corr 6m"
-    data_controlled_rotated_corr_6m["type"] = "ControlledRotatedCorr 6m"
-    data_rotated_corr_9m["type"] = "Rotated Corr 9m"
-    data_controlled_rotated_corr_9m["type"] = "ControlledRotatedCorr 9m"
-
-    data_rotated_corr_12w["type"] = "Rotated Corr 12w"
-    data_controlled_rotated_corr_12w["type"] = "ControlledRotatedCorr 12w"
-    data_rotated_corr_3w["type"] = "Rotated Corr 3w"
-    data_controlled_rotated_corr_3w["type"] = "ControlledRotatedCorr 3w"
-    data_rotated_corr_6w["type"] = "Rotated Corr 6w"
-    data_controlled_rotated_corr_6w["type"] = "ControlledRotatedCorr 6w"
-    data_rotated_corr_9w["type"] = "Rotated Corr 9w"
-    data_controlled_rotated_corr_9w["type"] = "ControlledRotatedCorr 9w"
 
     if len(data_rotated) > 0:
         data_syncdate = data[
@@ -300,13 +294,7 @@ def calculate_data_merged(data, data_controlled, data_rotated, data_controlled_r
         data_controlled_syncdate = data_controlled.copy()
 
     frames = [data_syncdate, data_controlled_syncdate, data_rotated,
-              data_controlled_rotated, data_rotated_corr, data_controlled_rotated_corr, data_rotated_corr_3m, data_controlled_rotated_corr_3m,
-                                                                         data_rotated_corr_6m, data_controlled_rotated_corr_6m,
-                                                                         data_rotated_corr_9m, data_controlled_rotated_corr_9m,
-                                                                         data_rotated_corr_12w, data_controlled_rotated_corr_12w,
-                                                                         data_rotated_corr_3w, data_controlled_rotated_corr_3w,
-                                                                         data_rotated_corr_6w, data_controlled_rotated_corr_6w,
-                                                                         data_rotated_corr_9w, data_controlled_rotated_corr_9w]
+              data_controlled_rotated, data_rotated_corr, data_controlled_rotated_corr]
 
     data_merged = pd.concat(frames)
     return data_merged

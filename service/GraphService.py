@@ -183,6 +183,8 @@ def get_columns_for_summary():
         dict(id='np_maxdd', name='NP / Max DD', type='numeric'),
         dict(id='num_trades', name='Trades', type='numeric'),
         dict(id='avg_trade', name='Avg Trade', type='numeric'),
+        dict(id='profit_factor', name='Profit Factor', type='numeric'),
+        dict(id='k_ratio', name='K-Ratio', type='numeric'),
         dict(id='worst_trade', name='Worst Trade', type='numeric', format=money),
         dict(id='worst_month', name='Worst Month', type='numeric', format=money),
         dict(id='profit_1m', name='Profit 1 Month', type='numeric', format=money),
