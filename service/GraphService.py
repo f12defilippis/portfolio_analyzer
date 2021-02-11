@@ -180,6 +180,7 @@ def get_columns_for_summary():
         dict(id='type', name='Type'),
         dict(id='profit', name='Profit', type='numeric', format=money),
         dict(id='max_dd', name='Max Drawdown', type='numeric', format=money),
+        dict(id='slippage_paid', name='Slippage', type='numeric', format=money),
         dict(id='np_maxdd', name='NP / Max DD', type='numeric'),
         dict(id='num_trades', name='Trades', type='numeric'),
         dict(id='avg_trade', name='Avg Trade', type='numeric'),

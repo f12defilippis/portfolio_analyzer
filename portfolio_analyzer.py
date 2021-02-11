@@ -53,6 +53,7 @@ sidebar = html.Div(
         bes.textfield("txt_numstrategies", "Number of Strategies", "Indicate the number of strategies here", num_strategies_start),
         bes.textfield("txt_risk", "Risk", "Indicate the risk here", risk_start),
         bes.textfield("txt_dd", "Drawdown Limit", "Indicate the drawdown limit here", dd_limit),
+        bes.datepicker("date_from"),
         bes.checkbox("check_oos", "Only OOS", oos),
         bes.checkbox("check_possiz", "Position Sizing", position_sizing),
         bes.checkbox("check_equcon", "Equity Control", equity_control),

@@ -23,6 +23,9 @@ def load_data(capital, risk):
     data['month'] = pd.DatetimeIndex(data['date']).month
     data['year'] = pd.DatetimeIndex(data['date']).year
     data['week'] = pd.DatetimeIndex(data['date']).week
+    data['day'] = pd.DatetimeIndex(data['date']).day
+    data['fortnight'] = data['day'].apply(lambda x: 1 if x <= 15 else 2)
+
 
     return data
 
@@ -56,8 +59,12 @@ def calculate_values(data, have_enabled, capital, risk, single_strategy, positio
 
 
 def calculate_equity_control(data, ddlimit):
+    data['max_drawdown_rolling'] = data['drawdown'].rolling(50).min().fillna(data['max_drawdown'])
+
     data['new_drawdown'] = np.where(
-        (data['drawdown'] * -1 > ddlimit) & (data['drawdown'] < data['max_drawdown'].shift(1)), True, False)
+        (data['drawdown'] * -1 > ddlimit) & (data['drawdown'] < data['max_drawdown_rolling'].shift(1)), True, False)
+    # data['new_drawdown'] = np.where(
+    #     (data['drawdown'] * -1 > ddlimit) & (data['drawdown'] < data['max_drawdown'].shift(1)), True, False)
     data['equity_mean50'] = data['equity_calc'].rolling(50).mean()
     data['equity_std50'] = data['equity_calc'].rolling(50).std()
     data['upper_band501'] = data['equity_mean50'] + data['equity_std50']
@@ -121,7 +128,7 @@ def rotate_portfolio(data_original_nomm, data, num_strategies, method, how_many_
                 table_strategy = calculate_ranking_npavgdd(data_original_nomm[pd.to_datetime(data['date']) <= date_ref], date_ref)
             elif method == "np_corr":
                 table_strategy = calculate_ranking_npcorr(data_original_nomm[pd.to_datetime(data['date']) <= date_ref], date_ref, how_many_months, monthly_or_weekly)
-            selected_strategies = table_strategy.iloc[1:number_of_live_strategies + 1, :].index.unique().to_numpy()
+            selected_strategies = table_strategy.iloc[0:number_of_live_strategies, :].index.unique().to_numpy()
             for strategy in selected_strategies:
                 selected_trade = data[data.strategy == strategy].copy()
                 mask = (pd.to_datetime(selected_trade['date']) >= date_ref) & (
@@ -182,6 +189,27 @@ def calculate_ranking_npcorr(data, date_ref, how_many_months, method):
         data_filtered = data_filtered[data_filtered.strategy != strategy_max_correlated]
         correlation_index = correlation_index - 1
 
+    table_strategy_np = table_strategy_np.sort_values(by=['correlation_index'], ascending=True)
+
+    return table_strategy_np[table_strategy_np.profit_net > 0]
+
+
+def calculate_ranking_npcorr_reverse(data, date_ref, how_many_months, method):
+    one_year_ago = date_ref - relativedelta(months=12)
+    data_filtered = data[pd.to_datetime(data['date']) > one_year_ago].copy()
+
+    table_strategy_np = pd.pivot_table(data_filtered, values='profit_net', index=['strategy'], aggfunc=np.sum).fillna(0)
+    strategy_list = table_strategy_np.index.tolist()
+    table_strategy_np["correlation_index"] = 0
+
+    correlation_index = 1
+    while data_filtered.size > 0:
+        data_correlated = correlate_data_with_parameter(data_filtered, how_many_months, method)
+        strategy_correlated_sorted = data_correlated.sum().sort_values(ascending=True).index.values
+        strategy_max_correlated = strategy_correlated_sorted[0]
+        table_strategy_np.loc[table_strategy_np.index == strategy_max_correlated, 'correlation_index'] = correlation_index
+        data_filtered = data_filtered[data_filtered.strategy != strategy_max_correlated]
+        correlation_index = correlation_index + 1
 
     table_strategy_np = table_strategy_np.sort_values(by=['correlation_index'], ascending=True)
 
@@ -192,16 +220,20 @@ def calculate_ranking_npcorr(data, date_ref, how_many_months, method):
 def calculate_strategy_summary(strategy, first_trade, selected_trade):
     selected_trade['one'] = 1
     selected_trade['cumcount'] = selected_trade['one'].cumsum()
+    selected_trade['slippage_paid'] = selected_trade['slippage'] * selected_trade['multiplier']
     operation_per_year = selected_trade.groupby('year').sum()['one'].max()
     slope, intercept, r_value, p_value, std_err = stats.linregress(selected_trade['cumcount'], selected_trade['equity_calc'].array)
 
     k_ratio = (slope / std_err) * (math.sqrt(operation_per_year) / selected_trade['one'].count())
 
     strategy['slippage'] = first_trade['slippage']
+    strategy['slippage_paid'] = selected_trade['slippage_paid'].sum()
     strategy['stop_loss'] = first_trade['stop'] * first_trade['unity']
     strategy['oos_from'] = first_trade['oos_from']
     strategy['profit'] = selected_trade['profit_net'].sum()
     strategy['max_dd'] = selected_trade['max_drawdown'].min() * -1
+    strategy['avg_dd'] = selected_trade[selected_trade.drawdown < 0].drawdown.mean() * -1
+    strategy['np_avg_dd'] = round(strategy['profit'] / strategy['avg_dd'],2)
     strategy['np_maxdd'] = round(strategy['profit'] / strategy['max_dd'], 2)
     strategy['num_trades'] = selected_trade[selected_trade['profit_net'] != 0].profit_net.count()
     strategy['avg_trade'] = round(strategy['profit'] / strategy['num_trades'], 2)
@@ -321,7 +353,13 @@ def correlate_data_with_parameter(data, how_many_months_back, method):
     date_ref = last_date - relativedelta(months=how_many_months_back)
     data_correlation = data[pd.to_datetime(data['date']) >= date_ref].copy()
 
-    correlation_table = pd.pivot_table(data_correlation, values='profit_net', index=['year', 'month' if method == 'month' else 'week'],
+    index = ['year', 'month']
+    if method == 'week':
+        index = ['year', 'week']
+    elif method == 'fortnight':
+        index = ['year', 'month', 'fortnight']
+
+    correlation_table = pd.pivot_table(data_correlation, values='profit_net', index=index,
                                        columns=['strategy'], aggfunc=np.sum).fillna(0)
     watchlist = correlation_table.columns.tolist()
     equity_df = pd.DataFrame()

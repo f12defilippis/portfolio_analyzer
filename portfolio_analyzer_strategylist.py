@@ -13,6 +13,7 @@ def render_page(capital, risk, num_strategies):
     all_strategies = []
     for s in sl:
         selected_trade = data[data.strategy == s].copy()
+        selected_trade = selected_trade[selected_trade.oosis == 'oos']
         CalculateDataService.calculate_values(selected_trade, False, capital, risk, True, False)
         strategy = pd.DataFrame()
         first_trade = selected_trade.iloc[1:2, :]
@@ -38,6 +39,8 @@ def render_page(capital, risk, num_strategies):
         dict(id='profit', name='Profit', type='numeric', format=money),
         dict(id='max_dd', name='Max Drawdown', type='numeric', format=money),
         dict(id='np_maxdd', name='NP / Max DD', type='numeric'),
+        dict(id='avg_dd', name='Avg Drawdown', type='numeric', format=money),
+        dict(id='np_avg_dd', name='NP / Avg DD', type='numeric'),
         dict(id='num_trades', name='Trades', type='numeric'),
         dict(id='avg_trade', name='Avg Trade', type='numeric'),
         # dict(id='perc_profit', name='% Profitable', type='numeric', format=percentage),

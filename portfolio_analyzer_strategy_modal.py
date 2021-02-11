@@ -38,8 +38,8 @@ def render_modal_body(data, capital, risk, num_strategies):
         data_rotated, table_month_rotated = ManageDataService.get_rotated_data(data_original_nomm, data, num_strategies, capital, risk, "np_avgdd", 12, "month", False)
         data_controlled_rotated, table_month_controlled_rotated = ManageDataService.get_rotated_data(data_original_nomm, data_controlled, num_strategies, capital, risk, "np_avgdd", 12, "month", True)
 
-        data_rotated_corr, table_month_rotated_corr = ManageDataService.get_rotated_data(data_original_nomm, data, num_strategies, capital, risk, "np_corr", 12, "month", False)
-        data_controlled_rotated_corr, table_month_controlled_rotated_corr = ManageDataService.get_rotated_data(data_original_nomm, data_controlled, num_strategies, capital, risk, "np_corr", 12, "month", True)
+        data_rotated_corr, table_month_rotated_corr = ManageDataService.get_rotated_data(data_original_nomm, data, num_strategies, capital, risk, "np_corr", 8, "week", False)
+        data_controlled_rotated_corr, table_month_controlled_rotated_corr = ManageDataService.get_rotated_data(data_original_nomm, data_controlled, num_strategies, capital, risk, "np_corr", 8, "week", True)
 
         # get merged summary
         data_merged, data_merged_summary = ManageDataService.get_summary(data, data_controlled, data_rotated, data_controlled_rotated,
@@ -49,28 +49,18 @@ def render_modal_body(data, capital, risk, num_strategies):
         columns = GraphService.get_columns_for_summary()
         summary_table = GraphService.draw_summary_table(columns, data_merged_summary, "table_summary")
 
-        months_to_try = [3, 6, 9, 12]
+        months_to_try = [8]
         all_fig_corr_month = []
-        all_fig_corr_week = []
 
         for m in months_to_try:
-            data_correlated = CalculateDataService.correlate_data_with_parameter(data, m, 'month')
+            data_correlated = CalculateDataService.correlate_data_with_parameter(data, m, 'week')
+            data_correlated.to_csv(r'Z:\portfolio_analyzer/data_correlated.csv')
             fig_correlated = ff.create_annotated_heatmap(data_correlated.to_numpy().tolist(),
                                                          x=data_correlated.columns.to_numpy().tolist(),
                                                          y=data_correlated.columns.to_numpy().tolist(),
                                                          annotation_text=data_correlated.to_numpy().round(2).tolist(),
                                                          colorscale='Viridis')
             all_fig_corr_month.append(fig_correlated)
-
-        for m in months_to_try:
-            data_correlated = CalculateDataService.correlate_data_with_parameter(data, m, 'week')
-            fig_correlated = ff.create_annotated_heatmap(data_correlated.to_numpy().tolist(),
-                                                         x=data_correlated.columns.to_numpy().tolist(),
-                                                         y=data_correlated.columns.to_numpy().tolist(),
-                                                         annotation_text=data_correlated.to_numpy().round(2).tolist(),
-                                                         colorscale='Viridis')
-            all_fig_corr_week.append(fig_correlated)
-
 
 
         fig_controlled_rotated_corr, fig_controlled_rotated_corr_drawdown = GraphService.draw_equity_and_drawdown(data_controlled_rotated_corr if len(data_controlled_rotated_corr) > 0 else data_controlled)
@@ -118,28 +108,6 @@ def render_modal_body(data, capital, risk, num_strategies):
             dbc.Row([
                 dbc.Col(dcc.Graph(id='correlation_graph0', figure=all_fig_corr_month[0]), width=12),
             ]),
-            dbc.Row([
-                dbc.Col(dcc.Graph(id='correlation_graph1', figure=all_fig_corr_month[1]), width=12),
-            ]),
-            dbc.Row([
-                dbc.Col(dcc.Graph(id='correlation_graph2', figure=all_fig_corr_month[2]), width=12),
-            ]),
-            dbc.Row([
-                dbc.Col(dcc.Graph(id='correlation_graph3', figure=all_fig_corr_month[3]), width=12),
-            ]),
-            dbc.Row([
-                dbc.Col(dcc.Graph(id='correlation_graph0w', figure=all_fig_corr_week[0]), width=12)
-            ]),
-            dbc.Row([
-                dbc.Col(dcc.Graph(id='correlation_graph1w', figure=all_fig_corr_week[1]), width=12),
-            ]),
-            dbc.Row([
-                dbc.Col(dcc.Graph(id='correlation_graph2w', figure=all_fig_corr_week[2]), width=12),
-            ]),
-            dbc.Row([
-                dbc.Col(dcc.Graph(id='correlation_graph3w', figure=all_fig_corr_week[3]), width=12),
-            ]),
-
         ]
 
     return ret
